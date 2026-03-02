@@ -1,85 +1,12 @@
 data <- read.csv(file = "ObesityDataSet_raw_and_data_sinthetic.csv", header = TRUE, sep = "," ,stringsAsFactors = FALSE)
 
-#Convert Gender to binary value (0 = MALE, 1 = Female) (uses regex pattern matching)
-data$Gender <- ifelse(data$Gender == "Female", 1, 0)
-table(data$Gender)
+#Rename columns for easier reference
+colnames(data) <- c("Gender", "Age", "Height", "Weight", "Family_history_with_overweight", "high_calorie_food_eat", "vegetable_eat_daily", "main_meals_daily",
+ "food_between_meals", "SMOKE", "Water_daily", "Calories_monitoring",
+  "Physical_activity", "Electronic_usage_daily", "Alcohol_consumption", "Method_of_Transport", "Obesity_Level")
 
-#Convert family_history_with_overweight to binary value (0 = NO, 1 = YES ) (uses regex pattern matching)
-data$family_history_with_overweight <- ifelse(data$family_history_with_overweight == "yes", 1, 0)
-table(data$family_history_with_overweight)
-
-#Convert FAVC to binary value (0 = no, 1 = yes) (uses regex pattern matching)
-data$FAVC <- ifelse(data$FAVC == "yes", 1, 0)
-table(data$FAVC)
-
-#Convert SMOKE to binary value (0 = no, 1 = yes) (uses regex pattern matching)
-data$SMOKE <- ifelse(data$SMOKE == "yes", 1, 0)
-table(data$SMOKE)
-
-#Convert SCC to binary value (0 = no, 1 = yes) (uses regex pattern matching)
-data$SCC <- ifelse(data$SCC == "yes", 1, 0)
-table(data$SCC)
-
-
-#Cinvert CAEC to ordinal values ( include blank as 0, no/No as 1, sometimes/Sometimes as 2, frequently/Frequently as 3, always/Always as 4)
-data$CAEC <- tolower(trimws(data$CAEC))
-data$CAEC <- ifelse(data$CAEC == "", 0,
-                    ifelse(data$CAEC == "no", 1,
-                           ifelse(data$CAEC == "sometimes", 2,
-                                  ifelse(data$CAEC == "frequently", 3,
-                                         ifelse(data$CAEC == "always", 4, NA)))))
-table(data$CAEC)
-
-#CALC to ordinal values ( include blank as 0, no/No as 1, sometimes/Sometimes as 2, frequently/Frequently as 3, always/Always as 4)
-data$CALC <- tolower(trimws(data$CALC))
-data$CALC <- ifelse(data$CALC == "", 0,
-                    ifelse(data$CALC == "no", 1,
-                           ifelse(data$CALC == "sometimes", 2,
-                                  ifelse(data$CALC == "frequently", 3,
-                                         ifelse(data$CALC == "always", 4, NA)))))
-table(data$CALC)
-
-#MTRANS to ordinal values (include blank as 0, Walking as 1, Bike as 2, Motorbike as 3, Public_Transportation as 4, Car as 5)
-data$MTRANS <- tolower(trimws(data$MTRANS))
-data$MTRANS <- ifelse(data$MTRANS == "", 0,
-                      ifelse(data$MTRANS == "walking", 1,
-                             ifelse(data$MTRANS == "bike", 2,
-                                    ifelse(data$MTRANS == "motorbike", 3,
-                                           ifelse(data$MTRANS == "public_transportation", 4,
-                                                  ifelse(data$MTRANS == "automobile", 5, NA))))))
-table(data$MTRANS)
-
-#NObeyesdad to ordinal values (blank as 0, Insufficient Wight as 1, Normal Weight as 2, Overweight Level I as 3, Overweight Level II as 4, Obesity Type I as 5, Obesity Type II as 6, Obesity Type III as 7)
-data$NObeyesdad <- tolower(trimws(data$NObeyesdad))
-data$NObeyesdad <- ifelse(data$NObeyesdad == "", 0,
-                          ifelse(data$NObeyesdad == "insufficient_weight", 1,
-                                 ifelse(data$NObeyesdad == "normal_weight", 2,
-                                        ifelse(data$NObeyesdad == "overweight_level_i", 3,
-                                               ifelse(data$NObeyesdad == "overweight_level_ii", 4,
-                                                      ifelse(data$NObeyesdad == "obesity_type_i", 5,
-                                                             ifelse(data$NObeyesdad == "obesity_type_ii", 6,
-                                                                    ifelse(data$NObeyesdad == "obesity_type_iii", 7, NA))))))))
-table(data$NObeyesdad)
-
-# Convert all values to numeric
-data <- as.data.frame(sapply(data, as.numeric))
-
-# Round continuous values to 2 decimal places, Age to 0 decimal places
-cols_to_round <- c("Height", "Weight", "CH2O", "FAF",  "FCVC", "TUE")
-data[ , cols_to_round] <- lapply(data[ , cols_to_round], round, 2)
-data$Age <- floor(data$Age)
-data$NCP <- ceiling(data$NCP)
-
-#Create new feature Diet_score as a risk score distribution based on FCVC, FAVC, CH2O, SCC, SMOKE, and FAF
-data$Diet_score <- data$FCVC + (4 - data$FAVC) + data$CH2O + (4 - data$SCC) + (4 - data$SMOKE) + data$FAF 
-table(data$Diet_score)
-
-#Create Age_group feature
-data$Age_group <- cut(
-  data$Age,
-  breaks = c(0, 18, 25, 35, 50, Inf),
-  labels = c("Teen", "Young adult", "Adult", "Middle age", "Older")
-)
+#Check each value 
+  table(data$Alcohol_consumption)
 
 #BMI Calculation  ; data$BMI = weight (kg) / (height (m))^2
 data$BMI <- data$Weight / ((data$Height) ^ 2)
@@ -87,10 +14,43 @@ data$BMI <- data$Weight / ((data$Height) ^ 2)
 #round BMI to 2 decimal places
 data$BMI <- round(data$BMI, 2)
 
+# Round continuous values to 2 decimal places, Age to 0 decimal places
+cols_to_round <- c("Height", "Weight", "Water_daily", "Physical_activity",  "vegetable_eat_daily", "Electronic_usage_daily")
+data[ , cols_to_round] <- lapply(data[ , cols_to_round], round, 2)
+data$Age <- floor(data$Age)
+data$main_meals_daily <- ceiling(data$main_meals_daily)
+table(data$Weight)
+
+#Create Age_group feature
+data$Age_group <- cut(
+  data$Age,
+  breaks = c(0, 18, 25, 35, 50, Inf),
+  labels = c("Teen", "Young adult", "Adult", "Middle age", "Older")
+)
+table(data$Age_group)
 # Export preprocessed data
 write.csv(data, "preprocessed.csv", row.names = FALSE)
 
+#Diet score calculation based on high_calorie_food_eat, vegetable_eat_daily, Physical_activity, Alcohol_consumption, water_daily, method_of_transport, food_between_meals, SMOKE, Calories_monitoring, main_meals_daily by assigning 1 point for each healthy behavior and 0 points for unhealthy behavior, then summing the points to get a total diet score for each individual. The higher the score, the healthier the diet.
+data$Diet_score <- 0
+data$Diet_score <- data$Diet_score + ifelse(data$high_calorie_food_eat == 0, 1, 0) # 1 point for not eating high calorie food frequently
+data$Diet_score <- data$Diet_score + ifelse(data$vegetable_eat_daily >= 3, 1, 0) # 1 point for eating vegetables daily 3 or more times
+data$Diet_score <- data$Diet_score + ifelse(data$Physical_activity >= 3, 1, 0) # 1 point for having physical activity 3 or more times a week
+data$Diet_score <- data$Diet_score + ifelse(data$Alcohol_consumption == "no", 1, 0) # 1 point for not drinking alcohol
+data$Diet_score <- data$Diet_score + ifelse(data$Water_daily >= 2, 1, 0) # 1 point for drinking water daily 2 or more liters
+data$Diet_score <- data$Diet_score + ifelse(data$Method_of_Transport %in% c("Walking", "Bike"), 1, 0) # 1 point for using active transportation
+data$Diet_score <- data$Diet_score + ifelse(data$food_between_meals == "no", 1, 0) # 1 point for not eating food between meals
+data$Diet_score <- data$Diet_score + ifelse(data$SMOKE == "no", 1, 0) # 1 point for not smoking
+data$Diet_score <- data$Diet_score + ifelse(data$Calories_monitoring == "yes", 1, 0) # 1 point for monitoring calories daily
+data$Diet_score <- data$Diet_score + ifelse(data$main_meals_daily >= 3, 1, 0) # 1 point for having 3 or more main meals daily
+table(data$Diet_score)
+#Add Diet_score into preprocessed data
+write.csv(data, "preprocessed.csv", row.names = FALSE)
 
+
+#round numbers of Electronic_usage_daily to 1 decimal places
+data$Electronic_usage_daily <- round(data$Electronic_usage_daily, 1)
+table(data$Electronic_usage_daily)
 
 #Name,Role,Type,Units,Description,Missing Values
 #Gender,feature,categorical,,,No
@@ -112,3 +72,4 @@ write.csv(data, "preprocessed.csv", row.names = FALSE)
 #NObeyesdad,target,categorical,,Obesity level,No
 summary(data)
 head(data)
+
