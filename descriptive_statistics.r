@@ -306,3 +306,55 @@ ggplot(data_normal, aes(x = Diet_score, fill = Obesity_Level)) +
   geom_density(alpha = 0.5, fill = "lightgreen") +
   labs(title = "Density Plot of Diet Score for Normal Weight", x = "Diet Score", y = "Density") +
   theme_minimal()
+#Obesity Level displayed on 3D Pie chart by percentage with legends
+obesity_counts <- table(data2$Obesity_Level)
+obesity_percentages <- round(obesity_counts / sum(obesity_counts) * 100, 1)
+ggplot(data2, aes(x = "", fill = Obesity_Level)) +
+  geom_bar(width = 1, color = "black") +
+  coord_polar(theta = "y") +
+  labs(title = "Obesity Level Distribution", x = "", y = "") +
+  theme_void() +
+  scale_fill_brewer(palette = "Set1") +
+  geom_text(aes(label = paste0(obesity_percentages, "%")), position = position_stack(vjust = 0.5), size = 4)
+
+#Normal distribution plot for Age variable
+ggplot(data2, aes(x = Age)) +
+  geom_histogram(aes(y = ..density..), bins = 15, fill = "lightblue", color = "black") +
+  geom_density(color = "red", size = 1) +
+  labs(title = "Normal Distribution of Age", x = "Age", y = "Density") +
+  theme_minimal()
+
+#Normal distribution plot for Physical activity variable, with 2 y axis, one for histogram and one for density plot
+ggplot(data2, aes(x = Physical_activity)) +
+  geom_histogram(aes(y = ..density..), bins = 5, fill = "lightgreen", color = "black") +
+  geom_density(color = "blue", size = 1) +
+  labs(title = "Normal Distribution of Physical Activity", x = "Physical Activity", y = "Density") +
+  theme_minimal()
+
+#Normal distribution plot for Diet score variable,
+ggplot(data2, aes(x = Diet_score)) +
+  geom_histogram(aes(y = ..density..), bins = 10, fill = "lightpink", color = "black") +
+  geom_density(color = "purple", size = 1) +
+  labs(title = "Normal Distribution of Diet Score", x = "Diet Score", y = "Density") +
+  theme_minimal()
+
+#paired scatter plot for Weight and Height, with points colored by Obesity level
+library(GGally)
+ggpairs(data2, columns = c("Weight", "Height"), aes(color = Obesity_Level)) +
+  labs(title = "Paired Scatter Plot for Weight and Height") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+
+#violin plot for BMI by Obesity level
+ggplot(data2, aes(x = Obesity_Level, y = BMI)) +
+  geom_violin(fill = "lightblue", color = "black") +
+  labs(title = "Violin Plot of BMI by Obesity Level", x = "Obesity Level", y = "BMI") +
+  theme_minimal()
+
+#scatter plot matrix for Age, Weight, Height and BMI, with points colored by Obesity level
+ggpairs(data2, columns = c("Age", "Weight", "Height", "BMI"), aes(color = Obesity_Level)) +
+  labs(title = "Scatter Plot Matrix for Age, Weight, Height and BMI") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+
+
