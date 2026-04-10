@@ -73,3 +73,5 @@ table(data$Electronic_usage_daily)
 summary(data)
 head(data)
 
+#I can change almost all information into numeric values, and soon I will do that to make graphs and charts easier to understand, but it will be saved secretly in the background, and I will keep the original data for reference.
+
