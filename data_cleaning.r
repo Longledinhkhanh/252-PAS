@@ -107,29 +107,6 @@ write.csv(data_model, "preprocessed_model.csv", row.names = FALSE)
 
 
 print(summary(data))
-
-
-#Name,Role,Type,Units,Description,Missing Values
-#Gender,feature,categorical,,,No
-#Age,feature,continuous,,,No
-#Height,feature,continuous,,,No
-#Weight,feature,continuous,,,No
-#family_history_with_overweight,feature,binary,,Has a family member suffered or suffers from overweight?,No
-#FAVC,feature,binary,,Do you eat high caloric food frequently?,No
-#FCVC,feature,integer,,Do you usually eat vegetables in your meals?,No
-#NCP,feature,continuous,,How many main meals do you have daily?,No
-#CAEC,feature,categorical,,Do you eat any food between meals?,No
-#SMOKE,feature,binary,,Do you smoke?,No
-#CH2O,feature,continuous,,How much water do you drink daily?,No
-#SCC,feature,binary,,Do you monitor the calories you eat daily?,No
-#FAF,feature,continuous,,How often do you have physical activity?,No
-#TUE,feature,integer,,How much time do you use technological devices such as cell phone, videogames, television, computer and others?,No
-#CALC,feature,categorical,,How often do you drink alcohol?,No
-#MTRANS,feature,categorical,,Which transportation do you usually use?,No
-#NObeyesdad,target,categorical,,Obesity level,No
 summary(data)
 
 
-#I can change almost all information into numeric values, and soon I will do that to make graphs and charts easier to understand, but it will be saved secretly in the background, and I will keep the original data for reference.
-
-table(data$Alcohol_consumption)

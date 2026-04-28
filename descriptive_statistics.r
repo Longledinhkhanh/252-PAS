@@ -1,360 +1,139 @@
-data2 <- read.csv(file = "preprocessed.csv", header = TRUE, sep = ",") # Read the preprocessed data
+# Load required libraries
+library(MASS)
+library(caret)
+library(moments)
+library(gtsummary)
+
+# 1. Read the cleaned data for the model (excluding Height, Weight, BMI)
+data_model <- read.csv("preprocessed_model.csv")
+
+# Ensure Obesity_Level is an Ordered Factor
+data_model$Obesity_Level <- factor(data_model$Obesity_Level, 
+                                   levels = c("Insufficient Weight", "Normal Weight", 
+                                              "Overweight Level I", "Overweight Level II", 
+                                              "Obesity Type I", "Obesity Type II", "Obesity Type III"),
+                                   ordered = TRUE)
+
+# 2. Split dataset into Train/Test (80/20)
+set.seed(123) # Ensure reproducibility of results
+trainIndex <- createDataPartition(data_model$Obesity_Level, p = 0.8, list = FALSE)
+train_data <- data_model[trainIndex, ]
+test_data  <- data_model[-trainIndex, ]
+
+# 3. Build the Ordinal Logistic Regression model
+# Predict Obesity_Level based on Diet_score, Age, Gender, and key habits
+model_ordinal <- polr(Obesity_Level ~ Diet_score + Age + Gender + 
+                        Family_history_with_overweight + Physical_activity + 
+                        food_between_meals + Alcohol_consumption, 
+                      data = train_data, Hess = TRUE)
+
+# 4. Summarize model results
+print(summary(model_ordinal))
+
+# 5. Evaluate accuracy on the Test set
+predictions <- predict(model_ordinal, test_data)
+conf_matrix <- confusionMatrix(predictions, test_data$Obesity_Level)
+
+print(conf_matrix)
+
+# Read the Exploratory Data Analysis (EDA) dataset (includes BMI)
+data_eda <- read.csv("preprocessed_eda.csv")
+
+data_eda$Obesity_Level <- factor(data_eda$Obesity_Level, 
+                                 levels = c("Insufficient Weight", "Normal Weight", 
+                                            "Overweight Level I", "Overweight Level II", 
+                                            "Obesity Type I", "Obesity Type II", "Obesity Type III"),
+                                 ordered = TRUE)
+
+# 6. Skewness
+# Note: Using data_eda because data_model no longer has the BMI column
+cat("Skewness of Age:", skewness(data_eda$Age), "\n")
+cat("Skewness of BMI:", skewness(data_eda$BMI), "\n")
+cat("Skewness of Diet_score:", skewness(data_eda$Diet_score), "\n")
+
+# 7. Chi-square Test
+table_family <- table(data_eda$Family_history_with_overweight, data_eda$Obesity_Level)
+chi_test_family <- chisq.test(table_family)
+print(chi_test_family)
+
+df_eda <- as.data.frame(data_eda)
+
+# 8. Baseline Characteristics
+table_1 <- df_eda[, c("Age", "Gender", "BMI", "Diet_score", "Physical_activity", 
+                      "Family_history_with_overweight", "Obesity_Level")] %>%
+  tbl_summary(
+    by = Obesity_Level, # Column to group by
+    statistic = list(
+      all_continuous() ~ "{median} ({p25}, {p75})", # Use Median because data is skewed
+      all_categorical() ~ "{n} ({p}%)"             # Use Frequency and %
+    ),
+    missing_text = "Missing data"
+  ) %>%
+  add_p() %>% # Automatically run statistical tests (Kruskal-Wallis / Chi-square) to compare groups
+  modify_header(label = "**Characteristic/Variable**")
+
+# Display Table 1
+# table_1
 
 
-#Helper function to extract summary statistics
-get_summary_stats <- function(data, column_name) {
-  column_data <- data[[column_name]]
-  stats <- list(
-    mean = mean(column_data, na.rm = TRUE),
-    median = median(column_data, na.rm = TRUE),
-    sd = sd(column_data, na.rm = TRUE),
-    var = var(column_data, na.rm = TRUE),
-    min = min(column_data, na.rm = TRUE),
-    max = max(column_data, na.rm = TRUE),
-    quantiles = quantile(column_data, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-  )
-  return(stats)
-}
-
-#Example usage: Get summary statistics for Age
-age_stats <- get_summary_stats(data2, "Age")
-print(age_stats)
-
-#histogram for Age using Gaussian density curve
-hist(data2$Age, breaks=15, probability=TRUE, main="Histogram of Age with Gaussian Density Curve", xlab="Age", col="lightblue", xlim=c(0,60), ylim=c(0,0.1))
-curve(dnorm(x, mean=mean(data2$Age, na.rm=TRUE), sd=sd(data2$Age, na.rm=TRUE)), add=TRUE, col="red", lwd=2)
-dev.new()
-
-#histogram for vegetable_eat_daily using Gaussian density curve
-hist(data2$vegetable_eat_daily, breaks= 7, probability=TRUE, main="Histogram of Vegetable Eat Daily with Gaussian Density Curve", xlab="Vegetable Eat Daily", col="lightgreen", xlim=c(0,5), ylim=c(0,1))
-curve(dnorm(x, mean=mean(data2$vegetable_eat_daily, na.rm=TRUE), sd=sd(data2$vegetable_eat_daily, na.rm=TRUE)), add=TRUE, col="blue", lwd=2)
-dev.new()
-#graph Obesity Level counts
-barplot(table(data2$Obesity_Level), main="Obesity Level Counts", xlab="Obesity Level", ylab="Counts", col="lightcoral")
-#add number on top of bars
-obesity_counts <- table(data2$Obesity_Level)
-text(x=barplot(table(data2$Obesity_Level)), y=obesity_counts, labels=obesity_counts, pos=3, cex=0.8)
-dev.new()
-# Display frequency table for vegetable_eat_daily variable
-hist(data2$vegetable_eat_daily, main="Frequency of Vegetable Eat Daily", xlab="Vegetable Eat Daily", col="lightgreen")
-dev.new()
-#Comparison of Physical activity values and TUE values using boxplots
-boxplot(data2$Physical_activity, data2$TUE, names=c("Physical Activity", "TUE"), main="Boxplot of Physical Activity and TUE", col=c("lightblue", "lightgreen"))
-dev.new()
-#Comparison of good diet score vs bad diet score using boxplots
-boxplot(data2$Diet_score ~ data2$Obesity_Level, main="Boxplot of Diet Score by Obesity Level", xlab="Obesity Level", ylab="Diet Score", col="lightpink")
-dev.new()
-#Pie chart for Method_of_Transport variable
-mtrans_counts <- table(data2$Method_of_Transport)
-pie(mtrans_counts, labels=names(mtrans_counts), main="Pie Chart of Method of Transport", col=rainbow(length(mtrans_counts)))
-dev.new()   
-#Age group and BMI relationship using bar plot
-age_bmi_table <- table(data2$Age_group, data2$Obesity_Level)
-barplot(age_bmi_table, beside=TRUE, main="Age Group vs Obesity Level", xlab="Age Group", ylab="Counts", col=rainbow(nrow(age_bmi_table)), legend=rownames(age_bmi_table))
-dev.new()
-
-#Scatter plot of Age vs Weight with regression line
-  ggplot(data2, aes(x=Age, y=Weight)) +
-    geom_point(color='blue', alpha=0.5) +
-    geom_smooth(method='lm', color='red') +
-    labs(title='Scatter Plot of Age vs Weight with Regression Line', x='Age', y='Weight') +
-    theme_minimal()
-dev.new()
-
-#Boxplot of BMI by Obesity Category
-ggplot(data2, aes(x = Obesity_Level, y = BMI)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.2, alpha = 0.3) +
-  labs(title = "BMI by Obesity Category", x = "Obesity Level", y = "BMI") +
-  theme_minimal()
-dev.new()
-
-
-
-#Obesity type I, II and III vs Gender using stacked bar plot
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x = Gender, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Obesity Level vs Gender", x = "Gender", y = "Count") +
-  theme_minimal()
-dev.new()
-
-#Normal weight vs Gender using stacked bar plot
-data_normal <- subset(data2, Obesity_Level == "Normal_Weight")
-ggplot(data_normal, aes(x = Gender, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Normal Weight vs Gender", x = "Gender", y = "Count") +
-  theme_minimal()
-dev.new()
-
-#Insufficient weight vs Gender using stacked bar plot
-data_insufficient <- subset(data2, Obesity_Level == "Insufficient_Weight")
-ggplot(data_insufficient, aes(x = Gender, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Insufficient Weight vs Gender", x = "Gender", y = "Count") +
-  theme_minimal() 
-dev.new()
-
-#Overweight Level I and II vs Gender using stacked bar plot
-data_overweight <- subset(data2, Obesity_Level %in% c("Overweight_Level_I", "Overweight_Level_II"))
-ggplot(data_overweight, aes(x = Gender, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Overweight Level vs Gender", x = "Gender", y = "Count") +
-  theme_minimal()
-dev.new()
-
-#Alcohol consumption vs Obesity Type I, II and III using stacked bar plot
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x = Alcohol_consumption, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Alcohol Consumption vs Obesity Level", x = "Alcohol Consumption", y = "Count") +
-  theme_minimal()
-dev.new()
-
-#Alcohol consumption vs Normal weight using stacked bar plot
-data_normal <- subset(data2, Obesity_Level == "Normal_Weight") 
-ggplot(data_normal, aes(x = Alcohol_consumption, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Alcohol Consumption vs Normal Weight", x = "Alcohol Consumption", y = "Count") +
-  theme_minimal()
-dev.new()
-
-#Alcohol consumption vs Insufficient weight using stacked bar plot 
-data_insufficient <- subset(data2, Obesity_Level == "Insufficient_Weight")
-ggplot(data_insufficient, aes(x = Alcohol_consumption, fill = Obesity_Level)) +
-  geom_bar (position = "stack", color = "black", fill = "lightgreen") +
-  labs(title= "Alcohol Consumption vs Insufficient Weight", x = "Alcohol Consumption", y = "Count") +
-  theme_minimal()
-dev.new()
-
-
-#Obesity type I, II and III Vs Age group using chart, with age group goes from younger to older
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x = Age_group, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Obesity Level vs Age Group", x = "Age Group", y = "Count") +
-  theme_minimal() +
-  scale_x_discrete(limits = c("Teen", "Young adult", "Adult", "Middle age", "Older")) +
-  ylim(c(0, 600))
-dev.new()
-
-#Overweight Level I and II Vs Age group using chart, with age group goes from younger to older
-data_overweight <- subset(data2, Obesity_Level %in% c("Overweight_Level_I", "Overweight_Level_II"))
-ggplot(data_overweight, aes(x = Age_group, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Overweight Level vs Age Group", x = "Age Group", y = "Count") +
-  theme_minimal() +
-  scale_x_discrete(limits = c("Teen", "Young adult", "Adult", "Middle age", "Older")) +
-  ylim(c(0, 400))
-dev.new()
-
-#Normal weight Vs Age group using chart, with age group goes from younger to older
-data_normal <- subset(data2, Obesity_Level == "Normal_Weight")
-ggplot(data_normal, aes(x = Age_group, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Normal Weight vs Age Group", x = "Age Group", y = "Count") +
-  theme_minimal() +
-  scale_x_discrete(limits = c("Teen", "Young adult", "Adult", "Middle age", "Older")) +
-  ylim(c(0, 200))
-dev.new()
-
-# Insufficient weight Vs Age group using chart, with age group goes from younger to older
-data_insufficient <- subset(data2, Obesity_Level == "Insufficient_Weight")
-ggplot(data_insufficient, aes(x = Age_group, fill = Obesity_Level)) +
-  geom_bar(position = "stack", color = "black") +
-  labs(title = "Insufficient Weight vs Age Group", x = "Age Group", y = "Count") +
-  theme_minimal() +
-  scale_x_discrete(limits = c("Teen", "Young adult", "Adult", "Middle age", "Older")) +
-  ylim(c(0, 10))
-
-
-#Obesity type I, II and III vs Weight using density plot
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x = Weight, fill = Obesity_Level)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Density Plot of Weight by Obesity Level", x = "Weight", y = "Density") +
-  theme_minimal() +
-  xlim(c(60,150))
-
-#ObesityLevel vs Physical activity using density plot
-ggplot(data2, aes(x = Physical_activity, fill = Obesity_Level)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Density Plot of Physical Activity by Obesity Level", x = "Physical Activity", y = "Density") +
-  theme_minimal() +
-  xlim(c(-1,4 ))
-
-#based on that, you can separate obesity level vs Physical activity into 4 density plot, with each obesity level has its own density plot
-
-#use all data to create heat map of correlation between continuous variables, with color goes from blue to red, and add correlation values on top of each cell
+# Load plotting libraries
+# install.packages(c("ggplot2", "corrplot", "dplyr")) # Uncomment this line if not installed
 library(ggplot2)
-library(reshape2)
-continuous_vars <- data2[, sapply(data2, is.numeric)]
-cor_matrix <- cor(continuous_vars, use = "complete.obs")
-cor_matrix_melt <- melt(cor_matrix)
-ggplot(cor_matrix_melt, aes(x=Var1, y=Var2, fill=value)) +
-  geom_tile() +
-  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0, limit=c(-1,1), space="Lab", name="Correlation") +
-  geom_text(aes(label=round(value, 2)), color="black", size=4) +
+library(corrplot)
+library(dplyr)
+
+# ---------------------------------------------------------
+# CHART 1: Lifestyle Score Density (Violin + Boxplot)
+# Purpose: Highlight the "Epidemiological Paradox" of Diet_score
+# ---------------------------------------------------------
+plot_1 <- ggplot(data_eda, aes(x = Obesity_Level, y = Diet_score, fill = Obesity_Level)) +
+  geom_violin(alpha = 0.5, color = NA) + # Draw the distribution shape (Violin)
+  geom_boxplot(width = 0.2, fill = "white", color = "black", alpha = 0.8) + # Add Boxplot in the middle
+  labs(title = "Chart 1: Distribution of Diet Score by Obesity Level",
+       x = "Obesity Level",
+       y = "Healthy Lifestyle Score (0 - 9)") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 12, hjust = 1)) +
-  labs(title="Correlation Heatmap of Continuous Variables", x="", y="")
+  theme(axis.text.x = element_text(angle = 15, hjust = 1), # Tilt X-axis text for readability
+        legend.position = "none")
 
+dev.new()
+print(plot_1)
 
-#KDE plot for height and weight
-ggplot(data2, aes(x=Height, y=Weight)) +
-  geom_point(color='blue', alpha=0.5) +
-  geom_density2d(color='red') +
-  labs(title='KDE Plot of Height and Weight', x='Height', y='Weight') +
-  theme_minimal()
+# ---------------------------------------------------------
+# CHART 2: Family History Proportion (100% Stacked Bar Chart)
+# Purpose: Demonstrate the absolute power of Genetics
+# ---------------------------------------------------------
+plot_2 <- ggplot(data_eda, aes(x = Obesity_Level, fill = Family_history_with_overweight)) +
+  geom_bar(position = "fill", color = "white") + # position="fill" to scale to 100% proportions
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(title = "Chart 2: Proportion of Family History of Overweight by Obesity Level",
+       x = "Obesity Level",
+       y = "Percentage (%)",
+       fill = "Family History?") +
+  scale_fill_manual(values = c("No" = "#56B4E9", "Yes" = "#E69F00")) + # Choose prominent blue/orange colors
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1))
 
-  #KDE plot for Obesity typeI, II and III (combined) with height and weight
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x=Weight, y=Height)) +
-  geom_point(color='blue', alpha=0.5) +
-  geom_density2d(color='red') +
-  labs(title='KDE Plot of Height and Weight for Obesity Type I, II and III', x='Weight', y='Height') +
-  xlim(c(60,150)) +
-  ylim(c(1.4,2)) +
-  theme_minimal()
+dev.new()
+print(plot_2)
 
-#KDE plot for Normal weight with height and weight
-data_normal <- subset(data2, Obesity_Level == "Normal_Weight")
-ggplot(data_normal, aes(x=Weight, y=Height)) +
-  geom_point(color='blue', alpha=0.5) +
-  geom_density2d(color='red') +
-  labs(title='KDE Plot of Height and Weight for Normal Weight', x='Weight', y='Height') +
-  xlim(c(25,100)) +
-  ylim(c(1.4,2)) +
-  theme_minimal()
+# ---------------------------------------------------------
+# CHART 3: Lifestyle Habits Correlation Matrix (Heatmap)
+# Purpose: Check for multicollinearity & relationships between behaviors
+# ---------------------------------------------------------
+# Filter out numeric columns to calculate correlation
+num_cols <- data_eda %>% select(where(is.numeric))
+cor_matrix <- cor(num_cols, use = "complete.obs")
 
-#KDE plot for Insufficient weight with height and weight
-data_insufficient <- subset(data2, Obesity_Level == "Insufficient_Weight")
-ggplot(data_insufficient, aes(x=Weight, y=Height)) +
-  geom_point(color='blue', alpha=0.5) +
-  geom_density2d(color='red') +
-  labs(title='KDE Plot of Height and Weight for Insufficient Weight', x='Weight', y='Height') +
-  xlim(c(25,80)) +
-  ylim(c(1.4,2)) +
-  theme_minimal()
-
-#KDE plot for Overweight Level I and II (combined) with height and weight
-data_overweight <- subset(data2, Obesity_Level %in% c("Overweight_Level_I", "Overweight_Level_II"))
-ggplot(data_overweight, aes(x=Weight, y=Height)) +
-  geom_point(color='blue', alpha=0.5) +
-  geom_density2d(color='red') +
-  labs(title='KDE Plot of Height and Weight for Overweight Level I and II', x='Weight', y='Height') +
-  xlim(c(40, 120)) +
-  ylim(c(1.4,2)) +
-  theme_minimal()
-
-  #distribution of BMI by Obesity level using bar plot
-ggplot(data2, aes(x = Obesity_Level, y = BMI)) +
-  geom_bar(stat = "summary", fun = "mean", fill = "lightblue", color = "black") +
-  labs(title = "Average BMI by Obesity Level", x = "Obesity Level", y = "Average BMI") +
-  theme_minimal()
-
-#distribution of Age by Obesity level using bar plot
-library(ggplot2)
-ggplot(data2, aes(x = Obesity_Level, y = Age)) +
-  geom_bar(stat = "summary", fun = "mean", fill = "lightgreen", color = "black") +
-  labs(title = "Average Age by Obesity Level", x = "Obesity Level", y = "Average Age") +
-  theme_minimal()
-
-#Bar chart for Transport method by Obesity level
-ggplot(data2, aes(x = Method_of_Transport, fill = Obesity_Level)) +
-  geom_bar(position = "dodge", color = "black") +
-  labs(title = "Transport Method by Obesity Level", x = "Transport Method", y = "Count") +
-  ylim(c(0, 350)) +
-  theme_minimal() +
-  scale_fill_brewer(palette = "Set1")
-
-#Bar chart for Alcohol consumption by Obesity level
-ggplot(data2, aes(x = Alcohol_consumption, fill = Obesity_Level)) +
-  geom_bar(position = "dodge", color = "black") +
-  labs(title = "Alcohol Consumption by Obesity Level", x = "Alcohol Consumption", y = "Count") +
-  ylim(c(0, 350)) +
-  theme_minimal() +
-  scale_fill_brewer(palette = "Set1")
-
-#Density chart for Physical activity vs Electronic usage daily by Obesity Type I, II and III combined
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x = Physical_activity, fill = Electronic_usage_daily)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Density Plot of Physical Activity vs Electronic Usage Daily for Obesity Type I, II and III", x = "Physical Activity", y = "Density") +
-  theme_minimal() +
-  xlim(c(-1,4 )) +
-  scale_fill_gradient(low = "lightblue", high = "red")
-
-
-#Diet score distribution by Obesity level using box plot
-library(ggplot2)
-ggplot(data2, aes(x = Obesity_Level, y = Diet_score)) +
-  geom_boxplot(fill = "lightpink", color = "black") +
-  labs(title = "Diet Score Distribution by Obesity Level", x = "Obesity Level", y = "Diet Score") +
-  theme_minimal()
-
-#Diet score distribution by Obesity I, II and III using density plot
-data_obese <- subset(data2, Obesity_Level %in% c("Obesity_Type_I", "Obesity_Type_II", "Obesity_Type_III"))
-ggplot(data_obese, aes(x = Diet_score, fill = Obesity_Level)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Density Plot of Diet Score by Obesity Level (I, II and III)", x = "Diet Score", y = "Density") +
-  theme_minimal()
-
-#Diet score distribution by Normal weight using density plot
-data_normal <- subset(data2, Obesity_Level == "Normal_Weight")
-ggplot(data_normal, aes(x = Diet_score, fill = Obesity_Level)) +
-  geom_density(alpha = 0.5, fill = "lightgreen") +
-  labs(title = "Density Plot of Diet Score for Normal Weight", x = "Diet Score", y = "Density") +
-  theme_minimal()
-#Obesity Level displayed on 3D Pie chart by percentage with legends
-obesity_counts <- table(data2$Obesity_Level)
-obesity_percentages <- round(obesity_counts / sum(obesity_counts) * 100, 1)
-ggplot(data2, aes(x = "", fill = Obesity_Level)) +
-  geom_bar(width = 1, color = "black") +
-  coord_polar(theta = "y") +
-  labs(title = "Obesity Level Distribution", x = "", y = "") +
-  theme_void() +
-  scale_fill_brewer(palette = "Set1") +
-  geom_text(aes(label = paste0(obesity_percentages, "%")), position = position_stack(vjust = 0.5), size = 4)
-
-#Normal distribution plot for Age variable
-ggplot(data2, aes(x = Age)) +
-  geom_histogram(aes(y = ..density..), bins = 15, fill = "lightblue", color = "black") +
-  geom_density(color = "red", size = 1) +
-  labs(title = "Normal Distribution of Age", x = "Age", y = "Density") +
-  theme_minimal()
-
-#Normal distribution plot for Physical activity variable, with 2 y axis, one for histogram and one for density plot
-ggplot(data2, aes(x = Physical_activity)) +
-  geom_histogram(aes(y = ..density..), bins = 5, fill = "lightgreen", color = "black") +
-  geom_density(color = "blue", size = 1) +
-  labs(title = "Normal Distribution of Physical Activity", x = "Physical Activity", y = "Density") +
-  theme_minimal()
-
-#Normal distribution plot for Diet score variable,
-ggplot(data2, aes(x = Diet_score)) +
-  geom_histogram(aes(y = ..density..), bins = 10, fill = "lightpink", color = "black") +
-  geom_density(color = "purple", size = 1) +
-  labs(title = "Normal Distribution of Diet Score", x = "Diet Score", y = "Density") +
-  theme_minimal()
-
-#paired scatter plot for Weight and Height, with points colored by Obesity level
-library(GGally)
-ggpairs(data2, columns = c("Weight", "Height"), aes(color = Obesity_Level)) +
-  labs(title = "Paired Scatter Plot for Weight and Height") +
-  theme_minimal() +
-  scale_color_brewer(palette = "Set1")
-
-#violin plot for BMI by Obesity level
-ggplot(data2, aes(x = Obesity_Level, y = BMI)) +
-  geom_violin(fill = "lightblue", color = "black") +
-  labs(title = "Violin Plot of BMI by Obesity Level", x = "Obesity Level", y = "BMI") +
-  theme_minimal()
-
-#scatter plot matrix for Age, Weight, Height and BMI, with points colored by Obesity level
-ggpairs(data2, columns = c("Age", "Weight", "Height", "BMI"), aes(color = Obesity_Level)) +
-  labs(title = "Scatter Plot Matrix for Age, Weight, Height and BMI") +
-  theme_minimal() +
-  scale_color_brewer(palette = "Set1")
-
-
+# Open a slightly larger graphics window if needed, then plot
+cat("\nDrawing Chart 3: Correlation Heatmap...\n")
+corrplot(cor_matrix, 
+         method = "color",       # Color the squares
+         type = "upper",         # Draw only the upper half to reduce clutter
+         order = "hclust",       # Cluster similar habits
+         addCoef.col = "black",  # Show correlation coefficients
+         number.cex = 0.7,       # Adjust number size
+         tl.col = "black",       # Black axis text
+         tl.srt = 45,            # Tilt text 45 degrees
+         title = "Chart 3: Correlation Heatmap",
+         mar = c(0,0,2,0))       # Adjust margins so text isn't cut off
