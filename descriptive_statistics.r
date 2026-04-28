@@ -73,7 +73,7 @@ table_1 <- df_eda[, c("Age", "Gender", "BMI", "Diet_score", "Physical_activity",
   modify_header(label = "**Characteristic/Variable**")
 
 # Display Table 1
-# table_1
+table_1
 
 
 # Load plotting libraries
